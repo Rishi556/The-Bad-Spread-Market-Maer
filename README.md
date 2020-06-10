@@ -3,7 +3,7 @@
 
 How to setup:
 
-Get A VPS, I recommend Privex Webbox because it has most things you need preinstalled. You can use either [Micro](https://pay.privex.io/order/package/webbox-se-micro?r=rishi556) or what I recommend, the [$5 one](https://pay.privex.io/order/package/webbox-se-v1?r=rishi556). If you chose to get one from elsewhere(probably more expensive) you can google how to install nodejs and npm onto your VPS.
+Get A VPS, I recommend Privex Webbox because it has most things you need preinstalled. You can use either [Micro](https://pay.privex.io/order/package/webbox-se-micro?r=rishi556)(this can have problems because its IPV6 only so setup will be harder) or what I recommend, the [$5 one](https://pay.privex.io/order/package/webbox-se-v1?r=rishi556). If you chose to get one from elsewhere(probably more expensive) you can google how to install nodejs and npm onto your VPS.
 
 Clone git by typing in `git clone https://github.com/Rishi556/The-Bad-Spread-Market-Maer.git`
 
