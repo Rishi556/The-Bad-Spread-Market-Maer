@@ -1,0 +1,10 @@
+{
+  "username" : "yourusernamealllowercase",
+  "privateActiveKey" : "5youractivekeyJ",
+  "symbol" : "THESYMBOLFORTOKENALLUPPERCASE",
+  "maxBuyOrders" : 2,
+  "maxSellOrders" : 6,
+  "buyOrdersQuantity" : 100,
+  "sellOrdersQuantity" : 100,
+  "updateMinutes" : 10
+}
