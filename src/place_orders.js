@@ -69,7 +69,7 @@ function placeOrder(type, amount, price, count){
     console.log(`Attempting to place ${type} order. Required amount is ${requiredAmount.toFixed(3)} ${token}.`);
     axios.post(rpcAPI, queryBalance).then((res) => {
       let balance = parseFloat(res.data.result.balance);
-      if (balance > requiredAmount){
+      if (balance >= requiredAmount){
         let orderJSON = {"contractName":"market","contractAction": `${type}`,"contractPayload":{"symbol": `${symbol}` ,"quantity": `${amount}`, "price": `${price.toFixed(8)}`}};
         hive.broadcast.customJson(config.privateActiveKey, [config.username], null, "ssc-mainnet-hive", JSON.stringify(orderJSON), (err) => {
           if (err){
