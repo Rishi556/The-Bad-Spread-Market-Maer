@@ -34,6 +34,11 @@ function placeOrders(){
           sellIncrease++;
           c++;
           balances.counter -= sellOrderQuantity;
+        } else if(balances.counter > 0) {
+          placeOrder("sell", balances.counter, prices.lowestAsk - (bidChanges * sellIncrease), c);
+          sellIncrease++;
+          c++;
+          balances.counter = 0;
         }
       }
 
