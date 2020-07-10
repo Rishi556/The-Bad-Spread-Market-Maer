@@ -26,6 +26,12 @@ function placeOrders(){
           buyIncrease++;
           c++;
           balances.hive -= (buyOrderQuantity * (prices.highestBid + (askChanges * buyIncrease)));
+        } else if (balances.hive > 0) {
+            let newBuyOrderQuantity = Math.floor((balances.hive / (prices.highestBid + (askChanges * buyIncrease))) * 1000) / 1000;
+            placeOrder("buy", newBuyOrderQuantity, prices.highestBid + (askChanges * buyIncrease), c);
+            buyIncrease++;
+            c++;
+            balances.hive -= (buyOrderQuantity * (prices.highestBid + (askChanges * buyIncrease)));
         }
       }
       for (let i = 0; i < maxSellOrders; i++){
