@@ -18,40 +18,45 @@ function cancelOrders(){
       for (i in resMetrics.data.result){
         sell.push(resMetrics.data.result[i].txId)
       }
-      let c = 1;
-      let max = buy.length + sell.length;
+      let c = 0;
+      let toCancelBuy = []
       for (i in buy){
-        cancelOrder("buy", buy[i], c, max);
-        c++
+        toCancelBuy.push({"contractName":"market","contractAction":"cancel","contractPayload":{"type":`buy`,"id":`${buy[i]}`}})
+        if (toCancelBuy.length === 10){
+          cancelOrder(toCancelBuy, c);
+          c++
+        }
       }
+      cancelOrder(toCancelBuy, c);
+      c++
+      let toCancelSell = []
       for (i in sell){
-        cancelOrder("sell", sell[i], c, max);
-        c++
+        toCancelSell.push({"contractName":"market","contractAction":"cancel","contractPayload":{"type":`sell`,"id":`${sell[i]}`}})
+        if (toCancelSell.length === 10){
+          cancelOrder(toCancelSell, c);
+          c++
+        }
       }
-      if (max === 0){
+      cancelOrder(toCancelSell, c);
+      c++
+      setTimeout(() => {
         place_orders.placeOrders()
-      }
+      }, 4000 * c)
+      
     })
   })
 }
 
-function cancelOrder(type, id, count, max){
+function cancelOrder(cancelJson, c){
   setTimeout(() => {
-    let cancelJson = {"contractName":"market","contractAction":"cancel","contractPayload":{"type":`${type}`,"id":`${id}`}};
-    console.log(`Attempting to cancel ${type} order with id ${id}.`);
     hive.broadcast.customJson(config.privateActiveKey, [config.username], null, "ssc-mainnet-hive", JSON.stringify(cancelJson), (err) => {
       if (err){
-        console.log(`Error canceling order with id ${id}.`)
+        console.log(`Error canceling orders`)
       } else {
-        console.log(`Successfully canceled order with id ${id}.`)
-      }
-      if (count === max){
-        setTimeout(() => {
-          place_orders.placeOrders()
-        }, 10 * 1000)
+        console.log(`Successfully canceled orders `)
       }
     })
-  }, count * 4000)
+  }, c * 4000)
 }
 
 module.exports = {
