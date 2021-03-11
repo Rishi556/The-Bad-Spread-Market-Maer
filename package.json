@@ -10,6 +10,6 @@
   "license": "MIT",
   "dependencies": {
     "@hiveio/hive-js": "^0.8.13",
-    "axios": "^0.19.2"
+    "axios": "^0.21.1"
   }
 }
