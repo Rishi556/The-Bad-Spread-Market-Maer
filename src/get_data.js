@@ -1,11 +1,11 @@
 let axios = require("axios");
 let config = require("../config.json");
 
-let rpcAPI = "https://api.hive-engine.com/rpc/contracts";
+let rpcAPI = config.hiveEngineNode;
 let symbol = config.symbol;
 let account = config.username;
 
-let metricsQuery = {id: 0,jsonrpc: "2.0",method: "findOne", params: {contract: "market", table: "metrics", query: {symbol : symbol}, limit: 1000, offset: 0, indexes: []}};
+let metricsQuery = {id: 0,jsonrpc: "2.0",method: "contracts.findOne", params: {contract: "market", table: "metrics", query: {symbol : symbol}, limit: 1000, offset: 0, indexes: []}};
 
 function getAskAndBid(callback){
   axios.post(rpcAPI, metricsQuery).then((resMetrics) => {
@@ -16,7 +16,7 @@ function getAskAndBid(callback){
   })
 }
 
-let getBalancesQuery = {id: 0,jsonrpc: "2.0",method: "find", params: {contract: "tokens", table: "balances", query: {account: account}, limit: 1000, offset: 0, indexes: []}};
+let getBalancesQuery = {id: 0,jsonrpc: "2.0",method: "contracts.find", params: {contract: "tokens", table: "balances", query: {account: account}, limit: 1000, offset: 0, indexes: []}};
 
 
 function getBalances(callback){

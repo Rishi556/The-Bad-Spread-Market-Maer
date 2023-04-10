@@ -2,6 +2,7 @@
   "username" : "yourusernamealllowercase",
   "privateActiveKey" : "5youractivekeyJ",
   "symbol" : "THESYMBOLFORTOKENALLUPPERCASE",
+  "hiveEngineNode" : "https://engine.rishipanthee.com",
   "maxBuyOrders" : 5,
   "maxTokenforSymbol": 100,
   "maxSellOrders" : 5,

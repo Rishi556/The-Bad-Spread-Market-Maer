@@ -1,10 +1,8 @@
 const config = require("../config.json");
 const hive = require("@hiveio/hive-js");
 const hiveEngine = require("./get_data.js");
-const axios = require("axios");
 
 const { symbol, buyOrdersQuantity, sellOrdersQuantity, maxBuyOrders, maxSellOrders, orderSpread, maxTokenforSymbol } = config;
-const rpcAPI = "https://engine.deathwing.me/contracts";
 
 function placeOrders() {
   hiveEngine.getBalances((balances) => {

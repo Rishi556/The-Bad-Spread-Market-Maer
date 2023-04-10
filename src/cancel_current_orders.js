@@ -3,7 +3,7 @@ const config = require("../config.json");
 const placeOrders = require("./place_orders.js");
 const axios = require("axios");
 
-const rpcAPI = "https://engine.deathwing.me/contracts";
+const rpcAPI = config.hiveEngineNode;
 
 async function cancelOrders() {
   // Retrieve buy and sell orders
@@ -52,7 +52,7 @@ async function getOrders(orderType) {
   const query = {
     id: 0,
     jsonrpc: "2.0",
-    method: "find",
+    method: "contracts.find",
     params: {
       contract: "market",
       table: orderType,
