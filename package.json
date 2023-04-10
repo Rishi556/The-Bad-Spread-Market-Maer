@@ -1,6 +1,6 @@
 {
   "name": "the-bad-spread-market-maer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "It is bad but it does the job of playing on spreads.",
   "main": "app.js",
   "scripts": {
@@ -9,7 +9,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@hiveio/hive-js": "^0.8.13",
-    "axios": "^0.21.1"
+    "@hiveio/hive-js": "^2.0.5",
+    "axios": "^1.3.5"
   }
 }
