@@ -18,6 +18,7 @@ function getAskAndBid(callback){
 
 let getBalancesQuery = {id: 0,jsonrpc: "2.0",method: "find", params: {contract: "tokens", table: "balances", query: {account: account}, limit: 1000, offset: 0, indexes: []}};
 
+
 function getBalances(callback){
   setTimeout(() => {
     axios.post(rpcAPI, getBalancesQuery).then((resMetrics) => {
@@ -32,7 +33,6 @@ function getBalances(callback){
           swapHiveBalance = parseFloat(currency_data.balance);
         }
       }
-
       callback({hive: swapHiveBalance, counter: counterCurrencyBalance});
     });
   }, 12000);

@@ -2,9 +2,11 @@
   "username" : "yourusernamealllowercase",
   "privateActiveKey" : "5youractivekeyJ",
   "symbol" : "THESYMBOLFORTOKENALLUPPERCASE",
-  "maxBuyOrders" : 2,
-  "maxSellOrders" : 6,
-  "buyOrdersQuantity" : 100,
-  "sellOrdersQuantity" : 100,
-  "updateMinutes" : 10
+  "maxBuyOrders" : 5,
+  "maxTokenforSymbol": 100,
+  "maxSellOrders" : 5,
+  "orderSpread" : 3,
+  "buyOrdersQuantity" : 6,
+  "sellOrdersQuantity" : 6,
+  "updateMinutes" : 5
 }

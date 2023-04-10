@@ -1,90 +1,164 @@
-let config = require("../config.json");
-let hive = require("@hiveio/hive-js");
-let hiveEngine = require("./get_data.js");
-let axios = require("axios");
+const config = require("../config.json");
+const hive = require("@hiveio/hive-js");
+const hiveEngine = require("./get_data.js");
+const axios = require("axios");
 
-let symbol = config.symbol;
-let buyOrderQuantity = config.buyOrdersQuantity;
-let sellOrderQuantity = config.sellOrdersQuantity;
-let maxBuyOrders = config.maxBuyOrders;
-let maxSellOrders = config.maxSellOrders;
+const { symbol, buyOrdersQuantity, sellOrdersQuantity, maxBuyOrders, maxSellOrders, orderSpread, maxTokenforSymbol } = config;
+const rpcAPI = "https://engine.deathwing.me/contracts";
 
-let rpcAPI = "https://api.hive-engine.com/rpc/contracts";
-
-function placeOrders(){
+function placeOrders() {
   hiveEngine.getBalances((balances) => {
     hiveEngine.getAskAndBid((prices) => {
-      let avg = (prices.highestBid + prices.lowestAsk) / 2;
-      let bidChanges = ((avg - prices.highestBid) / maxBuyOrders).toFixed(8);
-      let askChanges = ((prices.lowestAsk - avg) / maxSellOrders).toFixed(8);
-      let c = 1;
+      const avg = (prices.highestBid + prices.lowestAsk) / 2;
+      const spreadPercent = orderSpread / 100;
+      const spreadAmount = avg * spreadPercent;
+      const bidChanges = ((avg - spreadAmount - prices.highestBid) / maxBuyOrders).toFixed(8);
+      const askChanges = ((prices.lowestAsk - spreadAmount - avg) / maxSellOrders).toFixed(8);
+
       let buyIncrease = 1;
       let sellIncrease = 1;
-      for (let i = 0; i < maxBuyOrders; i++){
-        if (balances.hive > (buyOrderQuantity * (prices.highestBid + (askChanges * buyIncrease)))) {
-          placeOrder("buy", buyOrderQuantity, prices.highestBid + (askChanges * buyIncrease), c);
-          buyIncrease++;
-          c++;
-          balances.hive -= (buyOrderQuantity * (prices.highestBid + (askChanges * buyIncrease)));
-        } else if (balances.hive > 0) {
-            let newBuyOrderQuantity = Math.floor((balances.hive / (prices.highestBid + (askChanges * buyIncrease))) * 1000) / 1000;
-            placeOrder("buy", newBuyOrderQuantity, prices.highestBid + (askChanges * buyIncrease), c);
-            buyIncrease++;
-            c++;
-            balances.hive -= (buyOrderQuantity * (prices.highestBid + (askChanges * buyIncrease)));
-        }
-      }
-      for (let i = 0; i < maxSellOrders; i++){
-        if (balances.counter > sellOrderQuantity) {
-          placeOrder("sell", sellOrderQuantity, prices.lowestAsk - (bidChanges * sellIncrease), c);
-          sellIncrease++;
-          c++;
-          balances.counter -= sellOrderQuantity;
-        } else if(balances.counter > 0) {
-          placeOrder("sell", balances.counter, prices.lowestAsk - (bidChanges * sellIncrease), c);
-          sellIncrease++;
-          c++;
-          balances.counter = 0;
-        }
-      }
+      let orders = [];
 
+      const {
+        avgBuyPrice,
+        buyOrderCount,
+        totalBuyHive,
+        totalBuyPart,
+      } = placeBuyOrders(prices, bidChanges, askChanges, balances, orders, buyIncrease);
+      const {
+        avgSellPrice,
+        sellOrderCount,
+        totalSellPart,
+        totalSellHive,
+      } = placeSellOrders(prices, bidChanges, askChanges, balances, orders, sellIncrease);
+    
+      console.log(
+        `Placing ${buyOrderCount} buy orders. Total SWAP.HIVE spent: ${totalBuyHive.toFixed(3)}. Estimated gain in ${symbol}: ${totalBuyPart.toFixed(3)}. Average buy order price: ${avgBuyPrice.toFixed(8)} ${symbol} per SWAP.HIVE`
+      );
+      console.log(
+        `Placing ${sellOrderCount} sell orders. Total ${symbol} spent: ${totalSellPart.toFixed(3)}. Estimated gain in SWAP.HIVE: ${totalSellHive.toFixed(3)}. Average sell order price: ${avgSellPrice.toFixed(8)} ${symbol} per SWAP.HIVE`
+      );
+    
+      submitBatchOrders(orders);
     });
   });
 }
 
-function placeOrder(type, amount, price, count){
-  setTimeout(() => {
-    let queryBalance;
-    let requiredAmount;
-    let token;
-    if (type === "buy"){
-      queryBalance = {id: 0,jsonrpc: "2.0",method: "findOne", params : {contract: "tokens", table: "balances", query: {symbol : "SWAP.HIVE", account : config.username}, limit: 1, offset: 0, indexes : []}};
-      requiredAmount = amount * price;
-      token = "SWAP.HIVE"
-    } else {
-      queryBalance = {id: 0,jsonrpc: "2.0",method: "findOne", params : {contract: "tokens", table: "balances", query: {symbol : symbol, account : config.username}, limit: 1, offset: 0, indexes : []}};
-      requiredAmount = amount;
-      token = symbol
+function placeBuyOrders(prices, bidChanges, askChanges, balances, orders, buyIncrease) {
+  if (balances.counter >= maxTokenforSymbol) {
+    console.log(`Not placing buy orders. ${symbol} balance is ${balances.counter} which is greater than the maximum of ${maxTokenforSymbol} ${symbol}`)
+    return {
+      avgBuyPrice: 0,
+      buyOrderCount: 0,
+      totalBuyHive: 0,
+      totalBuyPart: 0,
+  }
+  }
+  let totalBuyPrice = 0;
+  let buyOrderCount = 0;
+  let totalBuyHive = 0;
+  let totalBuyPart = 0;
+
+  for (let i = 0; i < maxBuyOrders; i++) {
+    const requiredHive = buyOrdersQuantity * (prices.highestBid + (askChanges * buyIncrease));
+
+    if (balances.hive > requiredHive) {
+      const buyPrice = prices.highestBid + (askChanges * buyIncrease);
+      placeOrder("buy", buyOrdersQuantity, buyPrice, orders);
+      totalBuyPrice += buyPrice;
+      buyOrderCount++;
+      totalBuyHive += requiredHive;
+      totalBuyPart += buyOrdersQuantity;
+      buyIncrease++;
+      balances.hive -= requiredHive;
+    } else if (balances.hive > 0) {
+      const newBuyOrderQuantity = Math.floor((balances.hive / requiredHive) * 1000) / 1000;
+      const buyPrice = prices.highestBid + (askChanges * buyIncrease);
+      placeOrder("buy", newBuyOrderQuantity, buyPrice, orders);
+      totalBuyPrice += buyPrice;
+      buyOrderCount++;
+      totalBuyHive += balances.hive;
+      totalBuyPart += newBuyOrderQuantity;
+      buyIncrease++;
+      balances.hive -= requiredHive;
     }
-    console.log(`Attempting to place ${type} order. Required amount is ${requiredAmount.toFixed(3)} ${token}.`);
-    axios.post(rpcAPI, queryBalance).then((res) => {
-      let balance = parseFloat(res.data.result.balance);
-      if (balance >= requiredAmount){
-        let orderJSON = {"contractName":"market","contractAction": `${type}`,"contractPayload":{"symbol": `${symbol}` ,"quantity": `${amount}`, "price": `${price.toFixed(8)}`}};
-        hive.broadcast.customJson(config.privateActiveKey, [config.username], null, "ssc-mainnet-hive", JSON.stringify(orderJSON), (err) => {
-          if (err){
-            console.log(`Error placing order.`)
-          } else {
-            console.log(`Successfully placed order.`)
-          }
-        })
+  }
+
+  return {
+    avgBuyPrice: totalBuyPrice / buyOrderCount,
+    buyOrderCount,
+    totalBuyHive,
+    totalBuyPart,
+  };
+}
+
+function placeSellOrders(prices, bidChanges, askChanges, balances, orders, sellIncrease) {
+  let totalSellPrice = 0;
+  let sellOrderCount = 0;
+  let totalSellPart = 0;
+  let totalSellHive = 0;
+
+  for (let i = 0; i < maxSellOrders; i++) {
+    if (balances.counter > sellOrdersQuantity) {
+      const sellPrice = prices.lowestAsk - (bidChanges * sellIncrease);
+      placeOrder("sell", sellOrdersQuantity, sellPrice, orders);
+      totalSellPrice += sellPrice;
+      sellOrderCount++;
+      totalSellPart += sellOrdersQuantity;
+      totalSellHive += sellOrdersQuantity * sellPrice;
+      sellIncrease++;
+      balances.counter -= sellOrdersQuantity;
+    } else if (balances.counter > 0) {
+      const sellPrice = prices.lowestAsk - (bidChanges * sellIncrease);
+      placeOrder("sell", balances.counter, sellPrice, orders);
+      totalSellPrice += sellPrice;
+      sellOrderCount++;
+      totalSellPart += balances.counter;
+      totalSellHive += balances.counter * sellPrice;
+      sellIncrease++;
+      balances.counter = 0;
+    }
+  }
+
+  return {
+    avgSellPrice: totalSellPrice / sellOrderCount,
+    sellOrderCount,
+    totalSellPart,
+    totalSellHive,
+  };
+}
+
+
+function placeOrder(type, amount, price, orders) {
+  const token = type === "buy" ? "SWAP.HIVE" : symbol;
+
+  const orderJSON = {
+    contractName: "market",
+    contractAction: type,
+    contractPayload: { symbol, quantity: `${amount.toFixed(8)}`, price: `${price.toFixed(8)}` },
+  };
+
+  orders.push(orderJSON);
+}
+
+function submitBatchOrders(orders) {
+  hive.broadcast.customJson(
+    config.privateActiveKey,
+    [config.username],
+    null,
+    "ssc-mainnet-hive",
+    JSON.stringify(orders),
+    (err) => {
+      if (err) {
+        console.log("Error placing orders.");
+        console.log(err)
       } else {
-        console.log(`Not enough of a balance to place the order. You needed ${requiredAmount.toFixed(3)} ${token} but only had ${balance}.`)
+        console.log("Successfully placed orders.");
       }
-    })
-  }, count * 4000)
+    }
+  );
 }
 
 module.exports = {
-  placeOrders
+  placeOrders,
 };

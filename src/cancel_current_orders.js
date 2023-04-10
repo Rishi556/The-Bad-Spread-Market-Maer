@@ -1,64 +1,110 @@
-let hive = require("@hiveio/hive-js");
-let config = require("../config.json");
-let place_orders = require("./place_orders.js");
-let axios = require("axios");
+const hive = require("@hiveio/hive-js");
+const config = require("../config.json");
+const placeOrders = require("./place_orders.js");
+const axios = require("axios");
 
-let rpcAPI = "https://api.hive-engine.com/rpc/contracts";
+const rpcAPI = "https://engine.deathwing.me/contracts";
 
-function cancelOrders(){
-  let buyOrderQuery = {id: 0,jsonrpc: "2.0",method: "find",params: {contract: "market", table: "buyBook", query: {account : config.username, symbol : config.symbol}, limit: 1000, offset: 0, indexes: [{index: "_id", descending: true}]}};
-  axios.post(rpcAPI, buyOrderQuery).then((resMetrics) => {
-    let buy = [];
-    for (i in resMetrics.data.result){
-      buy.push(resMetrics.data.result[i].txId)
-    }
-    let sellOrderQuery = {id: 0,jsonrpc: "2.0",method: "find",params: {contract: "market", table: "sellBook", query: {account : config.username, symbol : config.symbol}, limit: 1000, offset: 0, indexes: [{index: "_id", descending: true}]}};
-    axios.post(rpcAPI, sellOrderQuery).then((resMetrics) => {
-      let sell = [];
-      for (i in resMetrics.data.result){
-        sell.push(resMetrics.data.result[i].txId)
-      }
-      let c = 0;
-      let toCancelBuy = []
-      for (i in buy){
-        toCancelBuy.push({"contractName":"market","contractAction":"cancel","contractPayload":{"type":`buy`,"id":`${buy[i]}`}})
-        if (toCancelBuy.length === 10){
-          cancelOrder(toCancelBuy, c);
-          c++
-        }
-      }
-      cancelOrder(toCancelBuy, c);
-      c++
-      let toCancelSell = []
-      for (i in sell){
-        toCancelSell.push({"contractName":"market","contractAction":"cancel","contractPayload":{"type":`sell`,"id":`${sell[i]}`}})
-        if (toCancelSell.length === 10){
-          cancelOrder(toCancelSell, c);
-          c++
-        }
-      }
-      cancelOrder(toCancelSell, c);
-      c++
-      setTimeout(() => {
-        place_orders.placeOrders()
-      }, 4000 * c)
-      
-    })
-  })
+async function cancelOrders() {
+  // Retrieve buy and sell orders
+  const buyOrders = await getOrders("buyBook");
+  const sellOrders = await getOrders("sellBook");
+
+  // Create an array to hold all cancel order actions
+  let cancelOrderActions = [];
+
+  // Add buy orders to cancel order actions array
+  for (const order of buyOrders) {
+    cancelOrderActions.push({
+      contractName: "market",
+      contractAction: "cancel",
+      contractPayload: { type: "buy", id: order },
+    });
+  }
+
+  // Add sell orders to cancel order actions array
+  for (const order of sellOrders) {
+    cancelOrderActions.push({
+      contractName: "market",
+      contractAction: "cancel",
+      contractPayload: { type: "sell", id: order },
+    });
+  }
+
+  // Cancel all orders in a single transaction
+  if (cancelOrderActions.length > 0) {
+    await cancelOrder(cancelOrderActions);
+  }
+
+  // Log the number of canceled buy and sell orders
+  console.log(
+    `Successfully canceled ${buyOrders.length} buy orders and ${sellOrders.length} sell orders.`
+  );
+
+  // Place new orders after canceling previous ones
+  placeOrders.placeOrders();
 }
 
-function cancelOrder(cancelJson, c){
-  setTimeout(() => {
-    hive.broadcast.customJson(config.privateActiveKey, [config.username], null, "ssc-mainnet-hive", JSON.stringify(cancelJson), (err) => {
-      if (err){
-        console.log(`Error canceling orders`)
-      } else {
-        console.log(`Successfully canceled orders `)
+
+
+
+async function getOrders(orderType) {
+  const query = {
+    id: 0,
+    jsonrpc: "2.0",
+    method: "find",
+    params: {
+      contract: "market",
+      table: orderType,
+      query: { account: config.username, symbol: config.symbol },
+      limit: 1000,
+      offset: 0,
+      indexes: [{ index: "_id", descending: true }],
+    },
+  };
+
+  const res = await axios.post(rpcAPI, query);
+  return res.data.result.map((order) => order.txId);
+}
+
+function batchOrders(orders, type) {
+  const batchSize = 10;
+  const batchedOrders = [];
+
+  for (let i = 0; i < orders.length; i += batchSize) {
+    const batch = orders.slice(i, i + batchSize).map((orderId) => ({
+      contractName: "market",
+      contractAction: "cancel",
+      contractPayload: { type, id: orderId },
+    }));
+
+    batchedOrders.push(batch);
+  }
+
+  return batchedOrders;
+}
+
+async function cancelOrder(cancelJson) {
+  return new Promise((resolve, reject) => {
+    hive.broadcast.customJson(
+      config.privateActiveKey,
+      [config.username],
+      null,
+      "ssc-mainnet-hive",
+      JSON.stringify(cancelJson),
+      (err) => {
+        if (err) {
+          console.log("Error canceling orders");
+          reject(err);
+        } else {
+          console.log("Successfully canceled orders");
+          resolve();
+        }
       }
-    })
-  }, c * 4000)
+    );
+  });
 }
 
 module.exports = {
-  cancelOrders
+  cancelOrders,
 };
